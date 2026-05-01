@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cubify — Custom Cube Creator</title>
+  <script>(function(){var t=localStorage.getItem('cubify-theme')||'dark';document.documentElement.dataset.theme=t;}());</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── Dark theme (default) — WCAG AA verified ─── */
+    :root {
+      --bg:           #08080e;
+      --surface:      #101018;
+      --surface-2:    #161620;
+      --surface-3:    #1d1d2a;
+      --border:       rgba(255,255,255,0.05);
+      --border-2:     rgba(255,255,255,0.13);
+      --border-3:     rgba(255,255,255,0.22);
+      --text:         #e0e0ee;   /* 15:1 on --bg ✓ */
+      --text-2:       #9090aa;   /* 6.7:1 on --bg ✓ */
+      --text-muted:   #8080a8;   /* 5.3:1 on --bg / 5.0:1 on --surface ✓ */
+      --accent:       #ff6c35;   /* 7.4:1 on --bg ✓ */
+      --accent-dim:   rgba(255,108,53,0.14);
+      --accent-glow:  rgba(255,108,53,0.07);
+      --success:      #4ade80;   /* 10:1 on --surface ✓ */
+      --success-dim:  rgba(74,222,128,0.10);
+      --canvas-inner: #0c0c1c;
+      --dot-color:    rgba(255,255,255,0.055);
+      --header-bg:    rgba(8,8,14,0.92);
+      --glow-color:   rgba(255,108,53,0.22);
+      --overlay-bg:   rgba(0,0,0,0.6);
+      --shadow:       0 24px 64px rgba(0,0,0,0.55);
+      --cube-size:    264px;
+      --half:         132px;
+    }
+
+    /* ─── Light theme — WCAG AA verified ────────────
+       --text-muted:  5.1:1 on --surface ✓
+       --accent:      5.9:1 on --bg ✓
+       --success:     6.3:1 on --bg ✓
+    ─────────────────────────────────────────────── */
+    html[data-theme="light"] {
+      --bg:           #f0f0f7;
+      --surface:      #fafafa;
+      --surface-2:    #f0f0f5;
+      --surface-3:    #e4e4ef;
+      --border:       rgba(0,0,0,0.07);
+      --border-2:     rgba(0,0,0,0.13);
+      --border-3:     rgba(0,0,0,0.24);
+      --text:         #1a1a2e;   /* 15:1 on --bg ✓ */
+      --text-2:       #3a3a5c;   /* 9.6:1 on --bg ✓ */
+      --text-muted:   #636380;   /* 5.1:1 on --surface ✓ */
+      --accent:       #a83000;   /* 5.9:1 on --bg ✓ */
+      --accent-dim:   rgba(168,48,0,0.10);
+      --accent-glow:  rgba(168,48,0,0.06);
+      --success:      #166534;   /* 6.3:1 on --bg ✓ */
+      --success-dim:  rgba(22,101,52,0.10);
+      --canvas-inner: #e8e8f2;
+      --dot-color:    rgba(0,0,0,0.055);
+      --header-bg:    rgba(240,240,247,0.92);
+      --glow-color:   rgba(168,48,0,0.14);
+      --overlay-bg:   rgba(0,0,0,0.45);
+      --shadow:       0 24px 64px rgba(0,0,0,0.18);
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    /* ─── Header ─────────────────────────────────── */
+    .header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 0 28px; height: 56px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--header-bg);
+      backdrop-filter: blur(24px);
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .logo { font-size: 17px; font-weight: 800; letter-spacing: 0.14em; color: var(--text); }
+    .logo em { font-style: normal; color: var(--accent); }
+    .logo-tag {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--text-muted); border: 1px solid var(--border-2);
+      padding: 3px 8px; border-radius: 3px;
+      transition: color 0.25s, border-color 0.25s;
+    }
+    .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+    .btn {
+      font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+      letter-spacing: 0.11em; text-transform: uppercase;
+      padding: 7px 14px; border-radius: 5px;
+      border: 1px solid var(--border-2); background: var(--surface-2);
+      color: var(--text-2); cursor: pointer; white-space: nowrap; line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .btn:hover { border-color: var(--border-3); color: var(--text); background: var(--surface-3); }
+    .btn.on    { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-icon {
+      width: 34px; height: 34px; padding: 0; border-radius: 5px;
+      border: 1px solid var(--border-2); background: var(--surface-2);
+      color: var(--text-2); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s; flex-shrink: 0;
+    }
+    .btn-icon:hover { border-color: var(--border-3); color: var(--text); background: var(--surface-3); }
+    .btn-icon svg   { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ─── Layout ─────────────────────────────────── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ─── Sidebar ────────────────────────────────── */
+    .sidebar {
+      width: 282px; flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      overflow-y: auto; display: flex; flex-direction: column;
+      background: var(--bg);
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
+
+    .s-section { padding: 18px 18px 16px; border-bottom: 1px solid var(--border); transition: border-color 0.25s; }
+    .s-label {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      letter-spacing: 0.24em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 13px; transition: color 0.25s;
+    }
+
+    /* ─── Shared cube notice ─────────────────────── */
+    .shared-notice {
+      margin: 0 18px 0;
+      padding: 10px 12px;
+      background: var(--accent-dim); border: 1px solid var(--accent);
+      border-radius: 8px; display: flex; gap: 10px; align-items: flex-start;
+    }
+    .sn-icon { color: var(--accent); font-size: 18px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+    .sn-title { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+    .sn-desc  { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-2); letter-spacing: 0.07em; }
+
+    /* ─── Face Cards ─────────────────────────────── */
+    .face-list { display: flex; flex-direction: column; gap: 7px; }
+    .face-card {
+      border: 1px solid var(--border); border-radius: 9px; overflow: hidden;
+      background: var(--surface); transition: border-color 0.2s, background 0.25s;
+    }
+    .face-card.hi    { border-color: var(--accent); }
+    .face-card:hover { border-color: var(--border-2); }
+    .card-top { display: flex; align-items: center; gap: 9px; padding: 9px 11px 7px; }
+    .face-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+    .face-name {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      font-weight: 500; color: var(--text); transition: color 0.25s;
+    }
+    .face-pill {
+      margin-left: auto; font-family: 'DM Mono', monospace;
+      font-size: 9px; padding: 2px 7px; border-radius: 20px;
+      transition: background 0.25s, color 0.25s;
+    }
+    .face-pill.empty { background: var(--surface-2); color: var(--text-muted); }
+    .face-pill.done  { background: var(--success-dim); color: var(--success); }
+
+    .upload-zone {
+      position: relative; margin: 0 10px 10px; height: 70px;
+      border-radius: 6px; border: 1px dashed var(--border-2); overflow: hidden;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .upload-zone:hover { border-color: var(--accent); background: var(--accent-glow); }
+    .upload-zone input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2; }
+    .upload-inner { display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none; }
+    .upload-inner svg { width: 16px; height: 16px; stroke: var(--text-muted); fill: none; }
+    .upload-inner span { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); transition: color 0.25s; }
+    .face-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+    .face-thumb.vis { display: block; }
+    .thumb-ov { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; gap: 6px; z-index: 3; }
+    .upload-zone:hover .thumb-ov.vis { display: flex; }
+    .t-act {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: rgba(10,10,20,0.8); border: 1px solid rgba(255,255,255,0.22);
+      color: #e0e0ee; font-size: 11px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: all; transition: background 0.12s;
+      font-family: 'DM Mono', monospace;
+    }
+    .t-act:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ─── Size Selector ──────────────────────────── */
+    .size-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .sz {
+      font-family: 'DM Mono', monospace; font-size: 11px; text-align: center;
+      padding: 8px 0; border: 1px solid var(--border-2); border-radius: 5px;
+      background: var(--surface); color: var(--text-2); cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .sz:hover { border-color: var(--border-3); color: var(--text); }
+    .sz.on    { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+
+    /* ─── Stats ──────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .stat-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 10px 12px;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .stat-n { font-size: 20px; font-weight: 800; line-height: 1; margin-bottom: 3px; color: var(--text); }
+    .stat-n em { font-style: normal; color: var(--accent); }
+    .stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-muted); transition: color 0.25s; }
+
+    /* ─── Publish & Share section ────────────────── */
+    .pub-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .pub-btn {
+      font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 0;
+      border-radius: 6px; cursor: pointer; text-align: center;
+      border: 1px solid var(--border-2); background: var(--surface); color: var(--text-2);
+      transition: all 0.15s;
+    }
+    .pub-btn:hover { border-color: var(--border-3); color: var(--text); background: var(--surface-3); }
+    .pub-btn.primary {
+      border-color: var(--accent); color: var(--accent); background: var(--accent-dim);
+    }
+    .pub-btn.primary:hover { background: var(--accent); color: #fff; }
+    .pub-hint {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      color: var(--text-muted); letter-spacing: 0.05em; line-height: 1.6;
+      transition: color 0.25s;
+    }
+
+    /* ─── Canvas ─────────────────────────────────── */
+    .canvas-area {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+      background: radial-gradient(ellipse 65% 65% at 50% 46%, var(--canvas-inner) 0%, var(--bg) 100%);
+      transition: background 0.25s;
+    }
+    .canvas-area::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(ellipse 75% 75% at center, black 20%, transparent 100%);
+    }
+    .canvas-status {
+      position: absolute; top: 18px; left: 22px;
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      letter-spacing: 0.12em; color: var(--text-muted); transition: color 0.25s;
+    }
+    .canvas-status strong { color: var(--accent); font-weight: 500; }
+
+    /* ─── 3D Scene ───────────────────────────────── */
+    .scene-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+    .scene {
+      perspective: 900px; perspective-origin: 50% 46%;
+      width: 460px; height: 460px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: grab; user-select: none; -webkit-user-select: none;
+    }
+    .scene.drag { cursor: grabbing; }
+    .cube {
+      width: var(--cube-size); height: var(--cube-size);
+      position: relative; transform-style: preserve-3d;
+      transition: transform 0.08s linear;
+    }
+    .face {
+      position: absolute; inset: 0; display: grid;
+      padding: 3px; gap: 3px; background: #080808;
+      border-radius: 5px; transform-style: preserve-3d;
+    }
+    .face-front  { transform: translateZ(var(--half)); }
+    .face-back   { transform: rotateY(180deg) translateZ(var(--half)); }
+    .face-left   { transform: rotateY(-90deg) translateZ(var(--half)); }
+    .face-right  { transform: rotateY(90deg) translateZ(var(--half)); }
+    .face-top    { transform: rotateX(90deg) translateZ(var(--half)); }
+    .face-bottom { transform: rotateX(-90deg) translateZ(var(--half)); }
+
+    .cell { border-radius: 2px; }
+    .face-front  .cell { background: #0057e3; }
+    .face-back   .cell { background: #f97316; }
+    .face-left   .cell { background: #1a73e8; }
+    .face-right  .cell { background: #e81c64; }
+    .face-top    .cell { background: #e84545; }
+    .face-bottom .cell { background: #e8e8f0; }
+    .face.hi { filter: brightness(1.45) saturate(1.1); }
+
+    .cube-glow {
+      position: absolute; bottom: -80px; left: 50%; transform: translateX(-50%);
+      width: 220px; height: 36px; pointer-events: none;
+      background: radial-gradient(ellipse, var(--glow-color) 0%, transparent 70%);
+      filter: blur(10px); transition: background 0.25s;
+    }
+
+    /* ─── Hints ──────────────────────────────────── */
+    .hints {
+      position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 20px;
+    }
+    .hint {
+      display: flex; align-items: center; gap: 6px;
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-muted); transition: color 0.25s;
+    }
+    .hint svg { width: 13px; height: 13px; stroke: var(--text-muted); fill: none; stroke-width: 1.5; }
+
+    /* ─── Share Modal ────────────────────────────── */
+    .share-modal {
+      position: fixed; inset: 0; z-index: 200;
+      display: none; align-items: center; justify-content: center;
+    }
+    .share-modal.open { display: flex; }
+
+    .share-backdrop {
+      position: absolute; inset: 0;
+      background: var(--overlay-bg);
+      backdrop-filter: blur(6px);
+      cursor: pointer;
+      transition: background 0.25s;
+    }
+
+    .share-box {
+      position: relative; z-index: 1;
+      background: var(--surface);
+      border: 1px solid var(--border-2);
+      border-radius: 16px;
+      padding: 28px;
+      width: min(500px, calc(100vw - 48px));
+      box-shadow: var(--shadow);
+      animation: shareIn 0.28s cubic-bezier(0.34,1.44,0.64,1);
+      transition: background 0.25s, border-color 0.25s;
+    }
+    @keyframes shareIn {
+      from { opacity: 0; transform: scale(0.88) translateY(12px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .share-head {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 8px;
+    }
+    .share-title { font-size: 16px; font-weight: 700; color: var(--text); }
+    .share-close {
+      width: 30px; height: 30px; border-radius: 7px; cursor: pointer;
+      background: transparent; border: 1px solid var(--border-2);
+      color: var(--text-2); display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .share-close:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-3); }
+    .share-close svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+    .share-desc {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--text-2); letter-spacing: 0.04em;
+      margin-bottom: 20px; line-height: 1.6;
+      transition: color 0.25s;
+    }
+
+    .share-tabs {
+      display: flex; gap: 6px; margin-bottom: 18px;
+    }
+    .share-tab {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 6px 14px; border-radius: 5px;
+      border: 1px solid var(--border-2); background: var(--surface-2);
+      color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    }
+    .share-tab:hover { border-color: var(--border-3); color: var(--text-2); }
+    .share-tab.on { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+
+    .share-panel { display: none; }
+    .share-panel.on { display: block; }
+
+    .share-url-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .share-url-input {
+      flex: 1; font-family: 'DM Mono', monospace; font-size: 10px;
+      padding: 9px 12px; background: var(--surface-2);
+      border: 1px solid var(--border-2); border-radius: 6px;
+      color: var(--text); outline: none;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      transition: border-color 0.15s, background 0.25s, color 0.25s;
+    }
+    .share-url-input:focus { border-color: var(--accent); }
+
+    .share-meta {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      color: var(--text-muted); letter-spacing: 0.08em;
+      min-height: 14px; transition: color 0.25s;
+    }
+
+    .export-info {
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .export-info-row {
+      display: flex; align-items: baseline; gap: 8px;
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-2); margin-bottom: 5px; transition: color 0.25s;
+    }
+    .export-info-row:last-child { margin-bottom: 0; }
+    .export-info-row .ei-label { color: var(--text-muted); min-width: 80px; transition: color 0.25s; }
+    .export-info-row .ei-val   { color: var(--text); }
+
+    /* ─── Toast ──────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 400;
+      background: var(--surface-3); color: var(--text);
+      border: 1px solid var(--border-2); border-radius: 8px;
+      padding: 11px 16px; font-family: 'DM Mono', monospace;
+      font-size: 11px; letter-spacing: 0.06em;
+      pointer-events: none; max-width: 300px;
+      opacity: 0; transform: translateY(10px);
+      transition: opacity 0.22s ease, transform 0.22s ease, background 0.25s, color 0.25s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast-icon { font-size: 14px; }
+
+    /* ─── Animations ─────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px) scale(0.94); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .scene-wrap { animation: fadeUp 0.7s cubic-bezier(0.34,1.44,0.64,1) forwards; }
+
+    @keyframes flash {
+      0%,100% { filter: brightness(1); }
+      50%      { filter: brightness(1.9) saturate(0.4); }
+    }
+    .face.flash { animation: flash 0.35s ease; }
+
+    /* spin for loading state */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinning { display: inline-block; animation: spin 0.8s linear infinite; }
+  </style>
+</head>
+<body>
+
+<!-- ─── Header ─────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">CUB<em>I</em>FY</div>
+  <div class="logo-tag">3D Cube Preview</div>
+  <div class="header-right">
+    <button class="btn" id="btnAuto">↻ Auto Rotate</button>
+    <button class="btn" id="btnReset">Reset View</button>
+    <button class="btn-icon" id="btnTheme" aria-label="Switch to light mode" title="Toggle theme"></button>
+  </div>
+</header>
+
+<!-- ─── Main ───────────────────────────────────────── -->
+<div class="main">
+
+  <aside class="sidebar">
+
+    <!-- Shared cube notice (hidden until a share URL is detected) -->
+    <div id="sharedNotice" style="padding:14px 18px 0; display:none;">
+      <div class="shared-notice">
+        <div class="sn-icon">↗</div>
+        <div>
+          <div class="sn-title">Shared Cube</div>
+          <div class="sn-desc">Upload new images to customize</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Face Images</div>
+      <div class="face-list" id="faceList"></div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Cube Grid</div>
+      <div class="size-row">
+        <button class="sz" data-n="2">2×2</button>
+        <button class="sz on" data-n="3">3×3</button>
+        <button class="sz" data-n="4">4×4</button>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Overview</div>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-n" id="stUploaded"><em>0</em>/6</div>
+          <div class="stat-lbl">Images</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-n" id="stTiles">54</div>
+          <div class="stat-lbl">Total Tiles</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-n" id="stGrid">3×3</div>
+          <div class="stat-lbl">Grid Size</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-n">6</div>
+          <div class="stat-lbl">Faces</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Publish &amp; Share</div>
+      <div class="pub-row">
+        <button class="pub-btn primary" id="btnShare">Share Link</button>
+        <button class="pub-btn" id="btnExport">Export HTML</button>
+      </div>
+      <p class="pub-hint">
+        Share generates a link with your cube embedded.<br>
+        Export downloads a self-contained HTML file.
+      </p>
+    </div>
+
+  </aside>
+
+  <!-- Canvas -->
+  <div class="canvas-area">
+    <div class="canvas-status">
+      <strong id="cvCount">0</strong> of 6 faces have custom images
+    </div>
+    <div class="scene-wrap">
+      <div class="scene" id="scene">
+        <div class="cube" id="cube">
+          <div class="face face-front"  id="face-front"></div>
+          <div class="face face-back"   id="face-back"></div>
+          <div class="face face-left"   id="face-left"></div>
+          <div class="face face-right"  id="face-right"></div>
+          <div class="face face-top"    id="face-top"></div>
+          <div class="face face-bottom" id="face-bottom"></div>
+        </div>
+      </div>
+      <div class="cube-glow"></div>
+    </div>
+    <div class="hints">
+      <div class="hint">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"/>
+        </svg>Drag to rotate
+      </div>
+      <div class="hint">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+        </svg>Scroll to zoom
+      </div>
+      <div class="hint">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+        </svg>Upload per face
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Share Modal ─────────────────────────────────── -->
+<div class="share-modal" id="shareModal" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+  <div class="share-backdrop" id="shareBackdrop"></div>
+  <div class="share-box">
+    <div class="share-head">
+      <span class="share-title" id="shareTitle">Publish Your Cube</span>
+      <button class="share-close" id="shareClose" aria-label="Close">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="share-desc">Choose how you'd like to publish or share your cube. No account needed.</p>
+
+    <!-- Tabs -->
+    <div class="share-tabs">
+      <button class="share-tab on" data-tab="link">Share Link</button>
+      <button class="share-tab" data-tab="export">Export HTML</button>
+    </div>
+
+    <!-- Share Link panel -->
+    <div class="share-panel on" id="panel-link">
+      <div class="share-url-row">
+        <input class="share-url-input" id="shareUrlInput" type="text" readonly
+               aria-label="Share URL" placeholder="Generating link…">
+        <button class="btn" id="shareCopyBtn" disabled>Copy</button>
+      </div>
+      <div class="share-meta" id="shareMeta">Compressing images…</div>
+    </div>
+
+    <!-- Export HTML panel -->
+    <div class="share-panel" id="panel-export">
+      <div class="export-info">
+        <div class="export-info-row">
+          <span class="ei-label">What:</span>
+          <span class="ei-val">Self-contained HTML file with all images embedded</span>
+        </div>
+        <div class="export-info-row">
+          <span class="ei-label">Works:</span>
+          <span class="ei-val">Offline, any browser, no server needed</span>
+        </div>
+        <div class="export-info-row">
+          <span class="ei-label">Host on:</span>
+          <span class="ei-val">GitHub Pages, Netlify, any static host</span>
+        </div>
+      </div>
+      <button class="btn" id="exportDownloadBtn" style="width:100%; padding:10px 0;">
+        ↓ Download cubify-cube.html
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Toast ───────────────────────────────────────── -->
+<div class="toast" id="toast" aria-live="polite">
+  <span class="toast-icon" id="toastIcon"></span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+  /* ─── Capture clean HTML template before any DOM changes ─ */
+  const ORIGINAL_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+  /* ─── Theme ───────────────────────────────────────────── */
+  const html     = document.documentElement;
+  const btnTheme = document.getElementById('btnTheme');
+  const MOON = `<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`;
+  const SUN  = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+
+  function applyTheme(t) {
+    html.dataset.theme = t;
+    btnTheme.innerHTML = t === 'dark' ? SUN : MOON;
+    btnTheme.setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    localStorage.setItem('cubify-theme', t);
+  }
+  btnTheme.addEventListener('click', () => applyTheme(html.dataset.theme === 'dark' ? 'light' : 'dark'));
+  applyTheme(html.dataset.theme || 'dark');
+
+  /* ─── Face config ─────────────────────────────────────── */
+  const FACES = [
+    { id:'front',  label:'Front',  color:'#0057e3', hint:'Primary face' },
+    { id:'back',   label:'Back',   color:'#f97316', hint:'Rear face'    },
+    { id:'left',   label:'Left',   color:'#1a73e8', hint:'Left panel'   },
+    { id:'right',  label:'Right',  color:'#e81c64', hint:'Right panel'  },
+    { id:'top',    label:'Top',    color:'#e84545', hint:'Top panel'    },
+    { id:'bottom', label:'Bottom', color:'#e8e8f0', hint:'Bottom panel' },
+  ];
+  const DEFAULTS = {
+    front:'./Front.png', back:'./Back.png', left:'./Left.png',
+    right:'./Right.png', top:'./Top.png',   bottom:'./Bottom.png',
+  };
+
+  const state = { n:3, images:{}, rotX:-22, rotY:28, scale:1, autoOn:false, raf:null };
+
+  /* ─── Build sidebar cards ─────────────────────────────── */
+  function buildSidebar() {
+    const list = document.getElementById('faceList');
+    list.innerHTML = '';
+    FACES.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'face-card'; card.id = `card-${f.id}`;
+      card.innerHTML = `
+        <div class="card-top">
+          <div class="face-dot" style="background:${f.color}"></div>
+          <span class="face-name">${f.label}</span>
+          <span class="face-pill empty" id="pill-${f.id}">Empty</span>
+        </div>
+        <div class="upload-zone" id="zone-${f.id}">
+          <input type="file" accept="image/*" data-face="${f.id}">
+          <img class="face-thumb" id="thumb-${f.id}" alt="">
+          <div class="upload-inner" id="ph-${f.id}">
+            <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span>${f.hint}</span>
+          </div>
+          <div class="thumb-ov" id="ov-${f.id}">
+            <div class="t-act" data-action="change" data-face="${f.id}" title="Change">↑</div>
+            <div class="t-act" data-action="remove" data-face="${f.id}" title="Remove">✕</div>
+          </div>
+        </div>`;
+      list.appendChild(card);
+
+      card.querySelector('input[type=file]').addEventListener('change', e => {
+        if (e.target.files[0]) readFile(e.target.files[0], f.id);
+      });
+
+      const zone = document.getElementById(`zone-${f.id}`);
+      zone.addEventListener('dragover',  e => { e.preventDefault(); zone.style.borderColor='var(--accent)'; zone.style.background='var(--accent-glow)'; });
+      zone.addEventListener('dragleave', () => { zone.style.borderColor=''; zone.style.background=''; });
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.style.borderColor=''; zone.style.background='';
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) readFile(file, f.id);
+      });
+
+      card.addEventListener('mouseenter', () => { document.getElementById(`face-${f.id}`)?.classList.add('hi'); card.classList.add('hi'); });
+      card.addEventListener('mouseleave', () => { document.getElementById(`face-${f.id}`)?.classList.remove('hi'); card.classList.remove('hi'); });
+    });
+
+    document.addEventListener('click', e => {
+      const { action, face } = e.target.dataset;
+      if (!action || !face) return;
+      e.stopPropagation();
+      if (action === 'remove') removeImage(face);
+      else if (action === 'change') document.querySelector(`#zone-${face} input`)?.click();
+    });
+  }
+
+  /* ─── File I/O ────────────────────────────────────────── */
+  function readFile(file, faceId) {
+    const reader = new FileReader();
+    reader.onload = ev => setImage(faceId, ev.target.result);
+    reader.readAsDataURL(file);
+  }
+  function setImage(faceId, url) {
+    state.images[faceId] = url;
+    applyCells(faceId, url); updateCard(faceId, url); updateStats(); flashFace(faceId);
+  }
+  function removeImage(faceId) {
+    delete state.images[faceId];
+    clearCells(faceId); updateCard(faceId, null); updateStats();
+    const inp = document.querySelector(`#zone-${faceId} input`);
+    if (inp) inp.value = '';
+  }
+
+  /* ─── Cell image splitting ────────────────────────────── */
+  function applyCells(faceId, url) {
+    const face = document.getElementById(`face-${faceId}`);
+    if (!face) return;
+    const n = state.n;
+    face.querySelectorAll('.cell').forEach((cell, i) => {
+      const row = Math.floor(i / n), col = i % n;
+      const xPct = n === 1 ? 0 : (col / (n - 1)) * 100;
+      const yPct = n === 1 ? 0 : (row / (n - 1)) * 100;
+      cell.style.backgroundImage    = `url('${url}')`;
+      cell.style.backgroundSize     = `${n * 100}% ${n * 100}%`;
+      cell.style.backgroundPosition = `${xPct}% ${yPct}%`;
+      cell.style.backgroundColor    = 'transparent';
+    });
+  }
+  function clearCells(faceId) {
+    document.getElementById(`face-${faceId}`)?.querySelectorAll('.cell').forEach(c => {
+      c.style.backgroundImage = c.style.backgroundSize =
+      c.style.backgroundPosition = c.style.backgroundColor = '';
+    });
+  }
+
+  /* ─── Sidebar card UI ─────────────────────────────────── */
+  function updateCard(faceId, url) {
+    const thumb = document.getElementById(`thumb-${faceId}`);
+    const ph    = document.getElementById(`ph-${faceId}`);
+    const pill  = document.getElementById(`pill-${faceId}`);
+    const ov    = document.getElementById(`ov-${faceId}`);
+    if (!thumb) return;
+    if (url) {
+      thumb.src = url; thumb.classList.add('vis');
+      ph.style.display = 'none'; ov.classList.add('vis');
+      pill.textContent = 'Done'; pill.className = 'face-pill done';
+    } else {
+      thumb.classList.remove('vis'); ph.style.display = '';
+      ov.classList.remove('vis'); pill.textContent = 'Empty'; pill.className = 'face-pill empty';
+    }
+  }
+  function updateStats() {
+    const count = Object.keys(state.images).length, n = state.n;
+    document.getElementById('stUploaded').innerHTML = `<em>${count}</em>/6`;
+    document.getElementById('stTiles').textContent  = n * n * 6;
+    document.getElementById('stGrid').textContent   = `${n}×${n}`;
+    document.getElementById('cvCount').textContent  = count;
+  }
+  function flashFace(faceId) {
+    const face = document.getElementById(`face-${faceId}`);
+    face?.classList.add('flash');
+    setTimeout(() => face?.classList.remove('flash'), 380);
+  }
+
+  /* ─── Init cube cells ─────────────────────────────────── */
+  function initFaces() {
+    FACES.forEach(f => {
+      const face = document.getElementById(`face-${f.id}`);
+      if (!face) return;
+      face.innerHTML = '';
+      face.style.gridTemplateColumns = `repeat(${state.n}, 1fr)`;
+      face.style.gridTemplateRows    = `repeat(${state.n}, 1fr)`;
+      for (let i = 0; i < state.n * state.n; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell'; face.appendChild(cell);
+      }
+      if (state.images[f.id]) applyCells(f.id, state.images[f.id]);
+    });
+    updateStats();
+  }
+
+  /* ─── 3D rotation ─────────────────────────────────────── */
+  const scene  = document.getElementById('scene');
+  const cubeEl = document.getElementById('cube');
+  let dragging = false, px = 0, py = 0;
+
+  function applyXform() {
+    cubeEl.style.transform = `scale(${state.scale}) rotateX(${state.rotX}deg) rotateY(${state.rotY}deg)`;
+  }
+  scene.addEventListener('mousedown', e => { dragging=true; px=e.clientX; py=e.clientY; scene.classList.add('drag'); stopAuto(); });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    state.rotY += (e.clientX-px)*0.46;
+    state.rotX  = Math.max(-85,Math.min(85,state.rotX-(e.clientY-py)*0.46));
+    applyXform(); px=e.clientX; py=e.clientY;
+  });
+  document.addEventListener('mouseup', () => { dragging=false; scene.classList.remove('drag'); });
+
+  let tx=0, ty=0;
+  scene.addEventListener('touchstart', e => { const t=e.touches[0]; dragging=true; tx=t.clientX; ty=t.clientY; stopAuto(); }, {passive:true});
+  document.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const t=e.touches[0];
+    state.rotY += (t.clientX-tx)*0.46;
+    state.rotX  = Math.max(-85,Math.min(85,state.rotX-(t.clientY-ty)*0.46));
+    applyXform(); tx=t.clientX; ty=t.clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', () => { dragging=false; });
+  scene.addEventListener('wheel', e => {
+    e.preventDefault();
+    state.scale = Math.max(0.45,Math.min(2.4,state.scale-e.deltaY*0.0008));
+    applyXform();
+  }, {passive:false});
+
+  /* ─── Auto rotate ─────────────────────────────────────── */
+  function startAuto() {
+    state.autoOn = true;
+    document.getElementById('btnAuto').classList.add('on');
+    let last = null;
+    const tick = ts => {
+      if (!state.autoOn) return;
+      if (last !== null) state.rotY += (ts-last)*0.038;
+      last = ts; applyXform(); state.raf = requestAnimationFrame(tick);
+    };
+    state.raf = requestAnimationFrame(tick);
+  }
+  function stopAuto() {
+    state.autoOn = false;
+    document.getElementById('btnAuto').classList.remove('on');
+    if (state.raf) { cancelAnimationFrame(state.raf); state.raf = null; }
+  }
+  document.getElementById('btnAuto').addEventListener('click', () => state.autoOn ? stopAuto() : startAuto());
+  document.getElementById('btnReset').addEventListener('click', () => {
+    stopAuto(); state.rotX=-22; state.rotY=28; state.scale=1;
+    cubeEl.style.transition='transform 0.65s cubic-bezier(0.34,1.44,0.64,1)';
+    applyXform(); setTimeout(()=>{cubeEl.style.transition='';},680);
+  });
+  document.querySelectorAll('.sz').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sz').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on'); state.n=parseInt(btn.dataset.n); initFaces();
+    });
+  });
+
+  /* ─── Toast ───────────────────────────────────────────── */
+  let _toastTimer;
+  function showToast(msg, icon='✓') {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent  = msg;
+    document.getElementById('toastIcon').textContent = icon;
+    clearTimeout(_toastTimer);
+    toast.classList.add('show');
+    _toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  /* ─── Image compression for share link ───────────────── */
+  function compressForShare(url, maxDim=200, quality=0.65) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(maxDim/img.naturalWidth, maxDim/img.naturalHeight, 1);
+        const w = Math.ceil(img.naturalWidth*s), h = Math.ceil(img.naturalHeight*s);
+        const cv = document.createElement('canvas');
+        cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(cv.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(url);
+      img.src = url;
+    });
+  }
+
+  /* ─── State encode / decode (base64url) ──────────────── */
+  function encodeState(data) {
+    const json = JSON.stringify(data);
+    const b64  = btoa(unescape(encodeURIComponent(json)));
+    return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  }
+  function decodeState(encoded) {
+    let b64 = encoded.replace(/-/g,'+').replace(/_/g,'/');
+    while (b64.length % 4) b64 += '=';
+    try { return JSON.parse(decodeURIComponent(escape(atob(b64)))); }
+    catch { return null; }
+  }
+
+  /* ─── Generate share URL ──────────────────────────────── */
+  async function buildShareURL() {
+    const images = {};
+    for (const [id, url] of Object.entries(state.images)) {
+      images[id] = await compressForShare(url);
+    }
+    const payload  = { v:1, n:state.n, im:images };
+    const encoded  = encodeState(payload);
+    const base     = location.href.split('#')[0];
+    return `${base}#s=${encoded}`;
+  }
+
+  /* ─── Share modal ─────────────────────────────────────── */
+  const shareModal = document.getElementById('shareModal');
+
+  function openShareModal(startTab='link') {
+    shareModal.classList.add('open');
+    switchTab(startTab);
+    if (startTab === 'link') generateShareLink();
+  }
+  function closeShareModal() {
+    shareModal.classList.remove('open');
+  }
+
+  // Tab switching
+  document.querySelectorAll('.share-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      switchTab(tab.dataset.tab);
+      if (tab.dataset.tab === 'link') generateShareLink();
+    });
+  });
+  function switchTab(name) {
+    document.querySelectorAll('.share-tab').forEach(t  => t.classList.toggle('on', t.dataset.tab===name));
+    document.querySelectorAll('.share-panel').forEach(p => p.classList.toggle('on', p.id===`panel-${name}`));
+  }
+
+  // Generate share link
+  let _linkGenerated = false;
+  function generateShareLink() {
+    if (_linkGenerated) return; // already generated, don't re-compress
+    const input   = document.getElementById('shareUrlInput');
+    const meta    = document.getElementById('shareMeta');
+    const copyBtn = document.getElementById('shareCopyBtn');
+    input.value   = 'Generating link…';
+    meta.textContent = 'Compressing images for sharing…';
+    copyBtn.disabled = true;
+    _linkGenerated   = false;
+
+    buildShareURL().then(url => {
+      input.value = url;
+      const kb = Math.round(url.length / 1024);
+      meta.textContent = `Ready — ${kb} KB · images embedded · opens in any browser`;
+      copyBtn.disabled = false;
+      _linkGenerated   = true;
+      input.select();
+    }).catch(() => {
+      meta.textContent = 'Could not generate link.';
+    });
+  }
+
+  // Reset link state when modal re-opens with new images
+  document.getElementById('btnShare').addEventListener('click', () => {
+    _linkGenerated = false; openShareModal('link');
+  });
+  document.getElementById('shareBackdrop').addEventListener('click', closeShareModal);
+  document.getElementById('shareClose').addEventListener('click', closeShareModal);
+  document.addEventListener('keydown', e => { if (e.key==='Escape') closeShareModal(); });
+
+  // Copy button
+  document.getElementById('shareCopyBtn').addEventListener('click', () => {
+    const url = document.getElementById('shareUrlInput').value;
+    const btn = document.getElementById('shareCopyBtn');
+    navigator.clipboard.writeText(url).then(() => {
+      btn.textContent = 'Copied!'; btn.classList.add('on');
+      showToast('Share link copied to clipboard');
+      setTimeout(() => { btn.textContent='Copy'; btn.classList.remove('on'); }, 2200);
+    }).catch(() => {
+      document.getElementById('shareUrlInput').select();
+      showToast('Press Ctrl+C / ⌘C to copy', '⌨');
+    });
+  });
+
+  /* ─── Export HTML ─────────────────────────────────────── */
+  function exportHTML() {
+    const stateData   = { v:1, n:state.n, im:state.images };
+    const injection   = `<script>window.__CUBIFY_INIT_STATE__=${JSON.stringify(stateData)}<\/script>`;
+    const exported    = ORIGINAL_HTML.replace('</body>', injection + '\n</body>');
+    const blob        = new Blob([exported], {type:'text/html'});
+    const a           = document.createElement('a');
+    a.href            = URL.createObjectURL(blob);
+    a.download        = 'cubify-cube.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    showToast('Exported as cubify-cube.html', '↓');
+    closeShareModal();
+  }
+  document.getElementById('btnExport').addEventListener('click', () => {
+    _linkGenerated = false; openShareModal('export');
+  });
+  document.getElementById('exportDownloadBtn').addEventListener('click', exportHTML);
+
+  /* ─── Load state from URL hash (#s=...) ──────────────── */
+  function loadFromURL() {
+    const hash = location.hash;
+    if (!hash.startsWith('#s=')) return false;
+    const data = decodeState(hash.slice(3));
+    if (!data) return false;
+    if (data.n) {
+      state.n = data.n;
+      document.querySelectorAll('.sz').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n)===state.n));
+    }
+    const images = data.im || data.images || {};
+    Object.entries(images).forEach(([id,url]) => { state.images[id] = url; });
+    return true;
+  }
+
+  /* ─── Load state from embedded export (window.__CUBIFY_INIT_STATE__) ── */
+  function loadFromInitialState() {
+    const s = window.__CUBIFY_INIT_STATE__;
+    if (!s) return false;
+    if (s.n) {
+      state.n = s.n;
+      document.querySelectorAll('.sz').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n)===state.n));
+    }
+    const images = s.im || s.images || {};
+    Object.entries(images).forEach(([id,url]) => { state.images[id] = url; });
+    return true;
+  }
+
+  /* ─── Apply any pre-loaded images to DOM ─────────────── */
+  function applyLoadedImages() {
+    FACES.forEach(f => {
+      if (state.images[f.id]) { applyCells(f.id, state.images[f.id]); updateCard(f.id, state.images[f.id]); }
+    });
+    updateStats();
+  }
+
+  /* ─── Load default PNG files (local only) ────────────── */
+  function loadDefaults() {
+    Object.entries(DEFAULTS).forEach(([faceId, src]) => {
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width=img.naturalWidth; cv.height=img.naturalHeight;
+        cv.getContext('2d').drawImage(img,0,0);
+        try {
+          const url = cv.toDataURL('image/png');
+          state.images[faceId] = url;
+          applyCells(faceId, url); updateCard(faceId, url); updateStats();
+        } catch { updateStats(); }
+      };
+      img.onerror = () => updateStats();
+      img.crossOrigin = 'anonymous'; img.src = src;
+    });
+  }
+
+  /* ─── Init ────────────────────────────────────────────── */
+  buildSidebar();
+
+  const fromState = loadFromInitialState();
+  const fromURL   = loadFromURL();
+
+  initFaces();
+  applyXform();
+
+  if (fromState || fromURL) {
+    applyLoadedImages();
+    if (fromURL) {
+      document.getElementById('sharedNotice').style.display = 'block';
+    }
+  } else {
+    loadDefaults();
+  }
+
+  setTimeout(startAuto, 800);
+</script>
+</body>
+</html>
