@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cubify — Custom Cube Creator</title>
-  <script>(function(){var t=localStorage.getItem('cubify-theme')||'dark';document.documentElement.dataset.theme=t;}());</script>
+  <script>(function(){var t=localStorage.getItem('cubify-theme')||'light';document.documentElement.dataset.theme=t;}());</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -648,7 +648,7 @@
     localStorage.setItem('cubify-theme', t);
   }
   btnTheme.addEventListener('click', () => applyTheme(html.dataset.theme === 'dark' ? 'light' : 'dark'));
-  applyTheme(html.dataset.theme || 'dark');
+  applyTheme(html.dataset.theme || 'light');
 
   /* ─── Face config ─────────────────────────────────────── */
   const FACES = [
