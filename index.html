@@ -548,6 +548,12 @@
       </div>
       <div class="cube-glow"></div>
     </div>
+    <!-- Loading overlay for shared cube fetch -->
+    <div id="loadOverlay" style="display:none; position:absolute; inset:0; background:var(--overlay-bg); backdrop-filter:blur(6px); z-index:50; align-items:center; justify-content:center; flex-direction:column; gap:14px;">
+      <div class="spinning" style="font-size:30px; color:var(--accent);">⟳</div>
+      <div id="loadOverlayMsg" style="font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.12em; color:var(--text-2);">Loading…</div>
+    </div>
+
     <div class="hints">
       <div class="hint">
         <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
@@ -876,7 +882,7 @@
   }
 
   /* ─── Image compression for share link ───────────────── */
-  function compressForShare(url, maxDim=200, quality=0.65) {
+  function compressForShare(url, maxDim=600, quality=0.85) {
     return new Promise(resolve => {
       const img = new Image();
       img.onload = () => {
@@ -905,16 +911,28 @@
     catch { return null; }
   }
 
-  /* ─── Generate share URL ──────────────────────────────── */
+  /* ─── Generate share URL via GitHub Gist ─────────────── */
   async function buildShareURL() {
     const images = {};
     for (const [id, url] of Object.entries(state.images)) {
-      images[id] = await compressForShare(url);
+      images[id] = await compressForShare(url, 600, 0.85);
     }
-    const payload  = { v:1, n:state.n, im:images };
-    const encoded  = encodeState(payload);
-    const base     = location.href.split('#')[0];
-    return `${base}#s=${encoded}`;
+    const payload = { v:2, n:state.n, im:images };
+
+    const resp = await fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
+      body: JSON.stringify({
+        description: 'Cubify cube share',
+        public: true,
+        files: { 'cube.json': { content: JSON.stringify(payload) } }
+      })
+    });
+
+    if (!resp.ok) throw new Error('Could not create share link');
+    const data = await resp.json();
+    const base = location.href.split('#')[0];
+    return `${base}#g=${data.id}`;
   }
 
   /* ─── Share modal ─────────────────────────────────────── */
@@ -949,19 +967,18 @@
     const meta    = document.getElementById('shareMeta');
     const copyBtn = document.getElementById('shareCopyBtn');
     input.value   = 'Generating link…';
-    meta.textContent = 'Compressing images for sharing…';
+    meta.textContent = 'Compressing images and uploading…';
     copyBtn.disabled = true;
     _linkGenerated   = false;
 
     buildShareURL().then(url => {
       input.value = url;
-      const kb = Math.round(url.length / 1024);
-      meta.textContent = `Ready — ${kb} KB · images embedded · opens in any browser`;
+      meta.textContent = `Ready — short link · full quality images · opens in any browser`;
       copyBtn.disabled = false;
       _linkGenerated   = true;
       input.select();
     }).catch(() => {
-      meta.textContent = 'Could not generate link.';
+      meta.textContent = 'Could not generate link — check your connection and try again.';
     });
   }
 
@@ -1006,19 +1023,57 @@
   });
   document.getElementById('exportDownloadBtn').addEventListener('click', exportHTML);
 
-  /* ─── Load state from URL hash (#s=...) ──────────────── */
-  function loadFromURL() {
+  /* ─── Loading overlay ────────────────────────────────── */
+  function showLoadingOverlay(msg) {
+    const ov = document.getElementById('loadOverlay');
+    document.getElementById('loadOverlayMsg').textContent = msg;
+    ov.style.display = 'flex';
+  }
+  function hideLoadingOverlay() {
+    document.getElementById('loadOverlay').style.display = 'none';
+  }
+
+  /* ─── Load state from URL hash (#g=... or legacy #s=...) ─ */
+  async function loadFromURL() {
     const hash = location.hash;
-    if (!hash.startsWith('#s=')) return false;
-    const data = decodeState(hash.slice(3));
-    if (!data) return false;
-    if (data.n) {
-      state.n = data.n;
-      document.querySelectorAll('.sz').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n)===state.n));
+    if (!hash) return false;
+
+    /* New gist format: #g=<gist_id> */
+    if (hash.startsWith('#g=')) {
+      const id = hash.slice(3).split('&')[0];
+      try {
+        showLoadingOverlay('Loading shared cube…');
+        const resp = await fetch(`https://api.github.com/gists/${id}`);
+        if (!resp.ok) throw new Error();
+        const gist = await resp.json();
+        const data = JSON.parse(gist.files['cube.json'].content);
+        if (data.n) {
+          state.n = data.n;
+          document.querySelectorAll('.sz').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n)===state.n));
+        }
+        Object.entries(data.im || data.images || {}).forEach(([fid,url]) => { state.images[fid] = url; });
+        hideLoadingOverlay();
+        return true;
+      } catch {
+        hideLoadingOverlay();
+        showToast('Could not load shared cube', '✕');
+        return false;
+      }
     }
-    const images = data.im || data.images || {};
-    Object.entries(images).forEach(([id,url]) => { state.images[id] = url; });
-    return true;
+
+    /* Legacy base64 format: #s=<base64url> */
+    if (hash.startsWith('#s=')) {
+      const data = decodeState(hash.slice(3));
+      if (!data) return false;
+      if (data.n) {
+        state.n = data.n;
+        document.querySelectorAll('.sz').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n)===state.n));
+      }
+      Object.entries(data.im || data.images || {}).forEach(([fid,url]) => { state.images[fid] = url; });
+      return true;
+    }
+
+    return false;
   }
 
   /* ─── Load state from embedded export (window.__CUBIFY_INIT_STATE__) ── */
@@ -1062,24 +1117,21 @@
   }
 
   /* ─── Init ────────────────────────────────────────────── */
-  buildSidebar();
-
-  const fromState = loadFromInitialState();
-  const fromURL   = loadFromURL();
-
-  initFaces();
-  applyXform();
-
-  if (fromState || fromURL) {
-    applyLoadedImages();
-    if (fromURL) {
-      document.getElementById('sharedNotice').style.display = 'block';
+  async function init() {
+    buildSidebar();
+    const fromState = loadFromInitialState();
+    const fromURL   = await loadFromURL();
+    initFaces();
+    applyXform();
+    if (fromState || fromURL) {
+      applyLoadedImages();
+      if (fromURL) document.getElementById('sharedNotice').style.display = 'block';
+    } else {
+      loadDefaults();
     }
-  } else {
-    loadDefaults();
+    setTimeout(startAuto, 800);
   }
-
-  setTimeout(startAuto, 800);
+  init();
 </script>
 </body>
 </html>
