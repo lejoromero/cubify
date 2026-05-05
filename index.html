@@ -123,16 +123,34 @@
     .btn-icon svg   { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
     /* ─── Layout ─────────────────────────────────── */
-    .main { display: flex; flex: 1; overflow: hidden; }
+    .main { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+    /* ─── Sidebar edge toggle tab ────────────────── */
+    .sidebar-tab {
+      position: absolute; left: 282px; top: 50%;
+      transform: translateX(-50%) translateY(-50%);
+      width: 18px; height: 44px; z-index: 20;
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      border-left: none; border-radius: 0 6px 6px 0;
+      color: var(--text-muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: left 0.28s cubic-bezier(0.4,0,0.2,1), background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .sidebar-tab:hover { background: var(--surface-3); color: var(--accent); border-color: var(--border-3); }
+    .sidebar-tab svg { width: 10px; height: 10px; transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
+    .sidebar.collapsed ~ .sidebar-tab { left: 0; border-left: 1px solid var(--border-2); border-radius: 0 6px 6px 0; }
+    .sidebar.collapsed ~ .sidebar-tab svg { transform: rotate(180deg); }
 
     /* ─── Sidebar ────────────────────────────────── */
     .sidebar {
-      width: 282px; flex-shrink: 0;
+      width: 282px; flex-shrink: 0; min-height: 0;
       border-right: 1px solid var(--border);
-      overflow-y: auto; display: flex; flex-direction: column;
+      overflow-y: auto; overflow-x: hidden;
+      display: flex; flex-direction: column;
       background: var(--bg);
-      transition: background 0.25s, border-color 0.25s;
+      transition: background 0.25s, border-color 0.25s, width 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease;
     }
+    .sidebar.collapsed { width: 0; opacity: 0; pointer-events: none; border: none; }
     .sidebar::-webkit-scrollbar { width: 3px; }
     .sidebar::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
 
@@ -372,20 +390,6 @@
       transition: color 0.25s;
     }
 
-    .share-tabs {
-      display: flex; gap: 6px; margin-bottom: 18px;
-    }
-    .share-tab {
-      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
-      text-transform: uppercase; padding: 6px 14px; border-radius: 5px;
-      border: 1px solid var(--border-2); background: var(--surface-2);
-      color: var(--text-muted); cursor: pointer; transition: all 0.15s;
-    }
-    .share-tab:hover { border-color: var(--border-3); color: var(--text-2); }
-    .share-tab.on { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
-
-    .share-panel { display: none; }
-    .share-panel.on { display: block; }
 
     .share-url-row { display: flex; gap: 8px; margin-bottom: 8px; }
     .share-url-input {
@@ -517,18 +521,20 @@
     </div>
 
     <div class="s-section">
-      <div class="s-label">Publish &amp; Share</div>
-      <div class="pub-row">
-        <button class="pub-btn primary" id="btnShare">Share Link</button>
-        <button class="pub-btn" id="btnExport">Export HTML</button>
-      </div>
+      <div class="s-label">Share</div>
+      <button class="pub-btn primary" id="btnShare" style="width:100%; margin-bottom:10px;">Share Link</button>
       <p class="pub-hint">
-        Share generates a link with your cube embedded.<br>
-        Export downloads a self-contained HTML file.
+        Generates a short link — anyone with it can preview your cube in 3D.
       </p>
     </div>
 
   </aside>
+
+  <button class="sidebar-tab" id="btnSidebar" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </button>
 
   <!-- Canvas -->
   <div class="canvas-area">
@@ -584,44 +590,14 @@
         <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </div>
-    <p class="share-desc">Choose how you'd like to publish or share your cube. No account needed.</p>
+    <p class="share-desc">Get a short link to share your cube. Anyone with the link can preview it in 3D — no account needed.</p>
 
-    <!-- Tabs -->
-    <div class="share-tabs">
-      <button class="share-tab on" data-tab="link">Share Link</button>
-      <button class="share-tab" data-tab="export">Export HTML</button>
+    <div class="share-url-row">
+      <input class="share-url-input" id="shareUrlInput" type="text" readonly
+             aria-label="Share URL" placeholder="Generating link…">
+      <button class="btn" id="shareCopyBtn" disabled>Copy</button>
     </div>
-
-    <!-- Share Link panel -->
-    <div class="share-panel on" id="panel-link">
-      <div class="share-url-row">
-        <input class="share-url-input" id="shareUrlInput" type="text" readonly
-               aria-label="Share URL" placeholder="Generating link…">
-        <button class="btn" id="shareCopyBtn" disabled>Copy</button>
-      </div>
-      <div class="share-meta" id="shareMeta">Compressing images…</div>
-    </div>
-
-    <!-- Export HTML panel -->
-    <div class="share-panel" id="panel-export">
-      <div class="export-info">
-        <div class="export-info-row">
-          <span class="ei-label">What:</span>
-          <span class="ei-val">Self-contained HTML file with all images embedded</span>
-        </div>
-        <div class="export-info-row">
-          <span class="ei-label">Works:</span>
-          <span class="ei-val">Offline, any browser, no server needed</span>
-        </div>
-        <div class="export-info-row">
-          <span class="ei-label">Host on:</span>
-          <span class="ei-val">GitHub Pages, Netlify, any static host</span>
-        </div>
-      </div>
-      <button class="btn" id="exportDownloadBtn" style="width:100%; padding:10px 0;">
-        ↓ Download cubify-cube.html
-      </button>
-    </div>
+    <div class="share-meta" id="shareMeta">Compressing images…</div>
   </div>
 </div>
 
@@ -911,69 +887,61 @@
     catch { return null; }
   }
 
-  /* ─── Generate share URL via GitHub Gist ─────────────── */
+  /* ─── Generate share URL via paste.rs (fallback: base64) ─ */
   async function buildShareURL() {
     const images = {};
     for (const [id, url] of Object.entries(state.images)) {
-      images[id] = await compressForShare(url, 600, 0.85);
+      images[id] = await compressForShare(url, 500, 0.82);
     }
     const payload = { v:2, n:state.n, im:images };
+    const json    = JSON.stringify(payload);
+    const base    = location.href.split('#')[0];
 
-    const resp = await fetch('https://api.github.com/gists', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
-      body: JSON.stringify({
-        description: 'Cubify cube share',
-        public: true,
-        files: { 'cube.json': { content: JSON.stringify(payload) } }
-      })
-    });
+    try {
+      const resp = await fetch('https://paste.rs/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: json
+      });
+      if (resp.ok) {
+        const pasteUrl = (await resp.text()).trim();
+        const id = pasteUrl.split('/').filter(Boolean).pop();
+        return `${base}#p=${id}`;
+      }
+    } catch { /* fall through to base64 */ }
 
-    if (!resp.ok) throw new Error('Could not create share link');
-    const data = await resp.json();
-    const base = location.href.split('#')[0];
-    return `${base}#g=${data.id}`;
+    return `${base}#s=${encodeState(payload)}`;
   }
 
   /* ─── Share modal ─────────────────────────────────────── */
   const shareModal = document.getElementById('shareModal');
 
-  function openShareModal(startTab='link') {
+  function openShareModal() {
     shareModal.classList.add('open');
-    switchTab(startTab);
-    if (startTab === 'link') generateShareLink();
+    generateShareLink();
   }
   function closeShareModal() {
     shareModal.classList.remove('open');
   }
 
-  // Tab switching
-  document.querySelectorAll('.share-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      switchTab(tab.dataset.tab);
-      if (tab.dataset.tab === 'link') generateShareLink();
-    });
-  });
-  function switchTab(name) {
-    document.querySelectorAll('.share-tab').forEach(t  => t.classList.toggle('on', t.dataset.tab===name));
-    document.querySelectorAll('.share-panel').forEach(p => p.classList.toggle('on', p.id===`panel-${name}`));
-  }
-
   // Generate share link
   let _linkGenerated = false;
   function generateShareLink() {
-    if (_linkGenerated) return; // already generated, don't re-compress
+    if (_linkGenerated) return;
     const input   = document.getElementById('shareUrlInput');
     const meta    = document.getElementById('shareMeta');
     const copyBtn = document.getElementById('shareCopyBtn');
-    input.value   = 'Generating link…';
+    input.value      = 'Generating link…';
     meta.textContent = 'Compressing images and uploading…';
     copyBtn.disabled = true;
     _linkGenerated   = false;
 
     buildShareURL().then(url => {
       input.value = url;
-      meta.textContent = `Ready — short link · full quality images · opens in any browser`;
+      const isShort = url.includes('#p=');
+      meta.textContent = isShort
+        ? 'Short link ready · opens in any browser · full quality images'
+        : 'Link ready · paste directly into a browser address bar';
       copyBtn.disabled = false;
       _linkGenerated   = true;
       input.select();
@@ -982,9 +950,8 @@
     });
   }
 
-  // Reset link state when modal re-opens with new images
   document.getElementById('btnShare').addEventListener('click', () => {
-    _linkGenerated = false; openShareModal('link');
+    _linkGenerated = false; openShareModal();
   });
   document.getElementById('shareBackdrop').addEventListener('click', closeShareModal);
   document.getElementById('shareClose').addEventListener('click', closeShareModal);
@@ -1004,24 +971,10 @@
     });
   });
 
-  /* ─── Export HTML ─────────────────────────────────────── */
-  function exportHTML() {
-    const stateData   = { v:1, n:state.n, im:state.images };
-    const injection   = `<script>window.__CUBIFY_INIT_STATE__=${JSON.stringify(stateData)}<\/script>`;
-    const exported    = ORIGINAL_HTML.replace('</body>', injection + '\n</body>');
-    const blob        = new Blob([exported], {type:'text/html'});
-    const a           = document.createElement('a');
-    a.href            = URL.createObjectURL(blob);
-    a.download        = 'cubify-cube.html';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    showToast('Exported as cubify-cube.html', '↓');
-    closeShareModal();
-  }
-  document.getElementById('btnExport').addEventListener('click', () => {
-    _linkGenerated = false; openShareModal('export');
-  });
-  document.getElementById('exportDownloadBtn').addEventListener('click', exportHTML);
+  /* ─── Sidebar toggle ──────────────────────────────────── */
+  const sidebar    = document.querySelector('.sidebar');
+  const btnSidebar = document.getElementById('btnSidebar');
+  btnSidebar.addEventListener('click', () => sidebar.classList.toggle('collapsed'));
 
   /* ─── Loading overlay ────────────────────────────────── */
   function showLoadingOverlay(msg) {
@@ -1038,15 +991,14 @@
     const hash = location.hash;
     if (!hash) return false;
 
-    /* New gist format: #g=<gist_id> */
-    if (hash.startsWith('#g=')) {
+    /* paste.rs format: #p=<paste_id> */
+    if (hash.startsWith('#p=')) {
       const id = hash.slice(3).split('&')[0];
       try {
         showLoadingOverlay('Loading shared cube…');
-        const resp = await fetch(`https://api.github.com/gists/${id}`);
+        const resp = await fetch(`https://paste.rs/${id}`);
         if (!resp.ok) throw new Error();
-        const gist = await resp.json();
-        const data = JSON.parse(gist.files['cube.json'].content);
+        const data = JSON.parse(await resp.text());
         if (data.n) {
           state.n = data.n;
           document.querySelectorAll('.sz').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n)===state.n));
